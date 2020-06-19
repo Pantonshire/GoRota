@@ -23,7 +23,7 @@ import "errors"
 const maxRunLength = 1 << 7
 
 type Slots struct {
-    bytes []byte
+    Bytes []byte
 }
 
 type SlotsPatch struct {
@@ -37,6 +37,10 @@ type Slot struct {
 }
 
 var ErrDiscontinuity = errors.New("temporal discontinuity in given intervals")
+
+func NewSlots(bytes []byte) Slots {
+    return Slots{Bytes: bytes}
+}
 
 func decodeAvailable(b byte) bool {
     return b & 0b10000000 != 0
@@ -55,7 +59,7 @@ func encodeRun(available bool, runLength int) byte {
     }
 }
 
-func newSlots(intervals []Slot, periodLength int, padHead bool, padTail bool) ([]byte, error) {
+func slotsFromIntervals(intervals []Slot, periodLength int, padHead bool, padTail bool) ([]byte, error) {
     if len(intervals) == 0 {
         return nil, errors.New("no intervals given")
     }
@@ -145,7 +149,7 @@ func newSlots(intervals []Slot, periodLength int, padHead bool, padTail bool) ([
 }
 
 func (patch SlotsPatch) apply(slots Slots) Slots {
-    if len(patch.Patch.bytes) == 0 {
+    if len(patch.Patch.Bytes) == 0 {
         return slots
     }
 
@@ -154,17 +158,17 @@ func (patch SlotsPatch) apply(slots Slots) Slots {
     i := 0
     t := 0
 
-    for ; i < len(slots.bytes); i++ {
-        runLength := decodeRunLength(slots.bytes[i])
+    for ; i < len(slots.Bytes); i++ {
+        runLength := decodeRunLength(slots.Bytes[i])
         if t+runLength > patch.Start {
             break
         }
-        patchedBytes = append(patchedBytes, slots.bytes[i])
+        patchedBytes = append(patchedBytes, slots.Bytes[i])
         t += runLength
     }
 
-    if i < len(slots.bytes) {
-        trimmedHeadAvailable := decodeAvailable(slots.bytes[i])
+    if i < len(slots.Bytes) {
+        trimmedHeadAvailable := decodeAvailable(slots.Bytes[i])
         trimmedHeadLength := patch.Start - t
         if trimmedHeadLength > 0 {
             patchedBytes = append(patchedBytes, encodeRun(trimmedHeadAvailable, trimmedHeadLength))
@@ -172,13 +176,13 @@ func (patch SlotsPatch) apply(slots Slots) Slots {
 
         t = patch.Start
 
-        for j := 0; j < len(patch.Patch.bytes); j++ {
-            patchedBytes = append(patchedBytes, patch.Patch.bytes[j])
+        for j := 0; j < len(patch.Patch.Bytes); j++ {
+            patchedBytes = append(patchedBytes, patch.Patch.Bytes[j])
             k := t
-            t += decodeRunLength(patch.Patch.bytes[j])
+            t += decodeRunLength(patch.Patch.Bytes[j])
 
-            for ; i < len(slots.bytes); i++ {
-                runLength := decodeRunLength(slots.bytes[i])
+            for ; i < len(slots.Bytes); i++ {
+                runLength := decodeRunLength(slots.Bytes[i])
                 if k+runLength >= t {
                     break
                 }
@@ -186,24 +190,116 @@ func (patch SlotsPatch) apply(slots Slots) Slots {
             }
         }
 
-        if i < len(slots.bytes) {
+        if i < len(slots.Bytes) {
             k := 0
             for j := 0; j < i; j++ {
-                k += decodeRunLength(slots.bytes[j])
+                k += decodeRunLength(slots.Bytes[j])
             }
 
-            trimmedTailAvailable := decodeAvailable(slots.bytes[i])
-            trimmedTailLength := decodeRunLength(slots.bytes[i]) + k - t
+            trimmedTailAvailable := decodeAvailable(slots.Bytes[i])
+            trimmedTailLength := decodeRunLength(slots.Bytes[i]) + k - t
             if trimmedTailLength > 0 {
                 patchedBytes = append(patchedBytes, encodeRun(trimmedTailAvailable, trimmedTailLength))
             }
 
             i++
-            for ; i < len(slots.bytes); i++ {
-                patchedBytes = append(patchedBytes, slots.bytes[i])
+            for ; i < len(slots.Bytes); i++ {
+                patchedBytes = append(patchedBytes, slots.Bytes[i])
             }
         }
     }
 
-    return Slots{bytes: patchedBytes}
+    return NewSlots(patchedBytes)
+}
+
+func (slots Slots) Available(interval Interval) bool {
+    if interval.Until < interval.From {
+        return false
+    }
+
+    i := 0
+    t := 0
+
+    for i < len(slots.Bytes) {
+        runLength := decodeRunLength(slots.Bytes[i])
+        if t+runLength > interval.From {
+            break
+        }
+        t += runLength
+        i++
+    }
+
+    for i < len(slots.Bytes) && t <= interval.Until {
+        available := decodeAvailable(slots.Bytes[i])
+        runLength := decodeRunLength(slots.Bytes[i])
+        if !available {
+            return false
+        }
+        t += runLength
+        i++
+    }
+
+    return t > interval.Until
+}
+
+func (slots Slots) FindAvailableIntervals(length int, between Interval) []Interval {
+    if len(slots.Bytes) == 0 {
+        return []Interval{}
+    }
+
+    i := 0
+    t := 0
+
+    for ; i < len(slots.Bytes); i++ {
+        runLength := decodeRunLength(slots.Bytes[i])
+        if t+runLength > between.From {
+            break
+        }
+        t += runLength
+    }
+
+    var intervals []Interval
+
+    if i < len(slots.Bytes) {
+        chaining := false
+        blockStart := between.From
+
+        for ; i < len(slots.Bytes) && t <= between.Until; i++ {
+            available := decodeAvailable(slots.Bytes[i])
+            runLength := decodeRunLength(slots.Bytes[i])
+
+            if available && !chaining {
+                blockStart = t
+                chaining = true
+            } else if !available && chaining {
+                blockEnd := t - 1
+                if blockEnd > between.Until {
+                    blockEnd = between.Until
+                }
+
+                for j := blockStart; j + length - 1 <= blockEnd; j++ {
+                    interval := NewInterval(j, j + length - 1)
+                    intervals = append(intervals, interval)
+                }
+
+                chaining = false
+            }
+
+            t += runLength
+        }
+
+        if chaining {
+            blockEnd := t - 1
+            if blockEnd > between.Until {
+                blockEnd = between.Until
+            }
+
+            for j := blockStart; j + length - 1 <= blockEnd; j++ {
+                interval := NewInterval(j, j + length - 1)
+                intervals = append(intervals, interval)
+            }
+        }
+    }
+
+    return intervals
 }
