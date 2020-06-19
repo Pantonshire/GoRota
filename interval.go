@@ -18,7 +18,10 @@
 
 package gorota
 
-import "errors"
+import (
+    "errors"
+    "fmt"
+)
 
 type Interval struct {
     //The first time included in this interval (inclusive)
@@ -47,4 +50,12 @@ func (iv Interval) Validate() error {
 
 func (iv Interval) Length() int {
     return (iv.Until - iv.From) + 1
+}
+
+func (iv Interval) String() string {
+    return fmt.Sprintf("[%d,%d]", iv.From, iv.Until)
+}
+
+func (bi BoolInterval) String() string {
+    return fmt.Sprintf("%s=%t", bi.Time, bi.Value)
 }
