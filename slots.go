@@ -212,7 +212,7 @@ func (patch SlotsPatch) apply(slots Slots) Slots {
     return NewSlots(patchedBytes)
 }
 
-func (slots Slots) Available(interval Interval) bool {
+func (slots Slots) IsAvailable(interval Interval) bool {
     if interval.Until < interval.From {
         return false
     }
@@ -242,7 +242,7 @@ func (slots Slots) Available(interval Interval) bool {
     return t > interval.Until
 }
 
-func (slots Slots) FindAvailableIntervals(length int, between Interval) []Interval {
+func (slots Slots) AvailableIntervals(length int, between Interval) []Interval {
     if len(slots.Bytes) == 0 {
         return []Interval{}
     }
