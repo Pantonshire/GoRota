@@ -27,6 +27,11 @@ type Interval struct {
     Until int `json:"until"`
 }
 
+type BoolInterval struct {
+    Time  Interval `json:"time"`
+    Value bool     `json:"value"`
+}
+
 var ErrBadTimeInterval = errors.New("negative or zero time interval")
 
 func NewInterval(from int, until int) Interval {

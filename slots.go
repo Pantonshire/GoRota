@@ -31,15 +31,17 @@ type SlotsPatch struct {
     Patch Slots
 }
 
-type Slot struct {
-    Time  Interval `json:"time"`
-    Value bool     `json:"value"`
-}
-
-var ErrDiscontinuity = errors.New("temporal discontinuity in given intervals")
+var (
+    ErrNoTime = errors.New("no temporal data given")
+    ErrDiscontinuity = errors.New("temporal discontinuity in given intervals")
+)
 
 func NewSlots(bytes []byte) Slots {
     return Slots{Bytes: bytes}
+}
+
+func NewSlotsPatch(start int, bytes []byte) SlotsPatch {
+    return SlotsPatch{Start: start, Patch: NewSlots(bytes)}
 }
 
 func decodeAvailable(b byte) bool {
@@ -59,9 +61,28 @@ func encodeRun(available bool, runLength int) byte {
     }
 }
 
-func slotsFromIntervals(intervals []Slot, periodLength int, padHead bool, padTail bool) ([]byte, error) {
+func IntervalsToSlots(intervals []BoolInterval, periodLength int) (Slots, error) {
+    bytes, err := IntervalsToBytes(intervals, true, periodLength)
+    if err != nil {
+        return Slots{}, err
+    }
+    return NewSlots(bytes), nil
+}
+
+func IntervalsToSlotsPatch(intervals []BoolInterval) (SlotsPatch, error) {
     if len(intervals) == 0 {
-        return nil, errors.New("no intervals given")
+        return SlotsPatch{}, ErrNoTime
+    }
+    bytes, err := IntervalsToBytes(intervals, false, 0)
+    if err != nil {
+        return SlotsPatch{}, err
+    }
+    return NewSlotsPatch(intervals[0].Time.From, bytes), nil
+}
+
+func IntervalsToBytes(intervals []BoolInterval, padHead bool, periodLength int) ([]byte, error) {
+    if len(intervals) == 0 {
+        return nil, ErrNoTime
     }
 
     start := intervals[0].Time.From
@@ -85,7 +106,7 @@ func slotsFromIntervals(intervals []Slot, periodLength int, padHead bool, padTai
     }
 
     if bytesRequired == 0 {
-        return nil, errors.New("no temporal progression in given intervals")
+        return nil, ErrNoTime
     }
 
     headLength := 0
@@ -97,7 +118,7 @@ func slotsFromIntervals(intervals []Slot, periodLength int, padHead bool, padTai
     }
 
     tailLength := 0
-    if padTail {
+    if periodLength > 0 {
         tailLength = (periodLength - 1) - end
         if tailLength > 0 {
             bytesRequired += (tailLength + maxRunLength - 1) / maxRunLength
@@ -210,6 +231,14 @@ func (patch SlotsPatch) apply(slots Slots) Slots {
     }
 
     return NewSlots(patchedBytes)
+}
+
+func (slots Slots) ApplyPatches(patches []SlotsPatch) Slots {
+    patched := slots
+    for _, patch := range patches {
+        patched = patch.apply(slots)
+    }
+    return patched
 }
 
 func (slots Slots) IsAvailable(interval Interval) bool {
