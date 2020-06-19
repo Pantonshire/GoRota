@@ -169,7 +169,7 @@ func IntervalsToBytes(intervals []BoolInterval, padHead bool, periodLength int) 
     return bytes, nil
 }
 
-func (patch SlotsPatch) apply(slots Slots) Slots {
+func (slots Slots) ApplyPatch(patch SlotsPatch) Slots {
     if len(patch.Patch.Bytes) == 0 {
         return slots
     }
@@ -236,7 +236,7 @@ func (patch SlotsPatch) apply(slots Slots) Slots {
 func (slots Slots) ApplyPatches(patches []SlotsPatch) Slots {
     patched := slots
     for _, patch := range patches {
-        patched = patch.apply(slots)
+        patched = slots.ApplyPatch(patch)
     }
     return patched
 }
