@@ -41,6 +41,10 @@ func NewInterval(from int, until int) Interval {
     return Interval{From: from, Until: until}
 }
 
+func NewBoolInterval(from int, until int, value bool) BoolInterval {
+    return BoolInterval{Time: NewInterval(from, until), Value: value}
+}
+
 func (iv Interval) Validate() error {
     if iv.Until < iv.From {
         return ErrBadTimeInterval
