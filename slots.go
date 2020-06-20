@@ -32,7 +32,7 @@ type SlotsPatch struct {
 }
 
 var (
-    ErrNoTime = errors.New("no temporal data given")
+    ErrNoTime        = errors.New("no temporal data given")
     ErrDiscontinuity = errors.New("temporal discontinuity in given intervals")
 )
 
@@ -167,6 +167,33 @@ func IntervalsToBytes(intervals []BoolInterval, padHead bool, periodLength int) 
     }
 
     return bytes, nil
+}
+
+func (slots Slots) ToIntervals(startTime int) []BoolInterval {
+    if len(slots.Bytes) == 0 {
+        return []BoolInterval{}
+    }
+
+    var intervals []BoolInterval
+    intervalStart := 0
+    currentValue := false
+    t := startTime
+
+    for i, b := range slots.Bytes {
+        available := decodeAvailable(b)
+        runLength := decodeRunLength(b)
+        if available != currentValue {
+            if i > 0 {
+                intervals = append(intervals, NewBoolInterval(intervalStart, t-1, currentValue))
+            }
+            currentValue = available
+        }
+        t += runLength
+    }
+
+    intervals = append(intervals, NewBoolInterval(intervalStart, t-1, currentValue))
+
+    return intervals
 }
 
 func (slots Slots) ApplyPatch(patch SlotsPatch) Slots {
@@ -306,8 +333,8 @@ func (slots Slots) AvailableIntervals(length int, between Interval) []Interval {
                     blockEnd = between.Until
                 }
 
-                for j := blockStart; j + length - 1 <= blockEnd; j++ {
-                    interval := NewInterval(j, j + length - 1)
+                for j := blockStart; j+length-1 <= blockEnd; j++ {
+                    interval := NewInterval(j, j+length-1)
                     intervals = append(intervals, interval)
                 }
 
@@ -323,8 +350,8 @@ func (slots Slots) AvailableIntervals(length int, between Interval) []Interval {
                 blockEnd = between.Until
             }
 
-            for j := blockStart; j + length - 1 <= blockEnd; j++ {
-                interval := NewInterval(j, j + length - 1)
+            for j := blockStart; j+length-1 <= blockEnd; j++ {
+                interval := NewInterval(j, j+length-1)
                 intervals = append(intervals, interval)
             }
         }
