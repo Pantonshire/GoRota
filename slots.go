@@ -77,7 +77,7 @@ func IntervalsToSlotsPatch(intervals []BoolInterval) (SlotsPatch, error) {
     if err != nil {
         return SlotsPatch{}, err
     }
-    return NewSlotsPatch(intervals[0].Time.From, bytes), nil
+    return NewSlotsPatch(intervals[0].From, bytes), nil
 }
 
 func IntervalsToBytes(intervals []BoolInterval, padHead bool, periodLength int) ([]byte, error) {
@@ -85,24 +85,24 @@ func IntervalsToBytes(intervals []BoolInterval, padHead bool, periodLength int) 
         return nil, ErrNoTime
     }
 
-    start := intervals[0].Time.From
-    end := intervals[len(intervals)-1].Time.Until
+    start := intervals[0].From
+    end := intervals[len(intervals)-1].Until
 
     var bytesRequired int
     var intervalGaps = make([]int, len(intervals))
     lastIntervalUntil := start - 1
 
     for i, interval := range intervals {
-        if interval.Time.From <= lastIntervalUntil {
+        if interval.From <= lastIntervalUntil {
             return nil, ErrDiscontinuity
         }
         if i > 0 {
-            gapLength := interval.Time.From - (lastIntervalUntil + 1)
+            gapLength := interval.From - (lastIntervalUntil + 1)
             intervalGaps[i-1] = gapLength
             bytesRequired += (gapLength + maxRunLength - 1) / maxRunLength
         }
-        bytesRequired += (interval.Time.Length() + maxRunLength - 1) / maxRunLength
-        lastIntervalUntil = interval.Time.Until
+        bytesRequired += (interval.Length() + maxRunLength - 1) / maxRunLength
+        lastIntervalUntil = interval.Until
     }
 
     if bytesRequired == 0 {
@@ -138,7 +138,7 @@ func IntervalsToBytes(intervals []BoolInterval, padHead bool, periodLength int) 
     }
 
     for j, interval := range intervals {
-        for intervalLength := interval.Time.Length(); intervalLength > 0; intervalLength -= maxRunLength {
+        for intervalLength := interval.Length(); intervalLength > 0; intervalLength -= maxRunLength {
             runLength := intervalLength
             if runLength > maxRunLength {
                 runLength = maxRunLength
