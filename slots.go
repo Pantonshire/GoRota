@@ -80,7 +80,7 @@ func IntervalsToSlotsPatch(intervals []BoolInterval) (SlotsPatch, error) {
     return NewSlotsPatch(intervals[0].From, bytes), nil
 }
 
-func IntervalsToBytes(intervals []BoolInterval, padHead bool, periodLength int) ([]byte, error) {
+func IntervalsToBytes(intervals []BoolInterval, padHead bool, epochLength int) ([]byte, error) {
     if len(intervals) == 0 {
         return nil, ErrNoTime
     }
@@ -118,8 +118,8 @@ func IntervalsToBytes(intervals []BoolInterval, padHead bool, periodLength int) 
     }
 
     tailLength := 0
-    if periodLength > 0 {
-        tailLength = (periodLength - 1) - end
+    if epochLength > 0 {
+        tailLength = (epochLength - 1) - end
         if tailLength > 0 {
             bytesRequired += (tailLength + maxRunLength - 1) / maxRunLength
         }
