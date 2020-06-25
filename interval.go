@@ -24,9 +24,9 @@ import (
 )
 
 type Interval struct {
-    //The first time included in this interval (inclusive)
+    //The start of this interval (inclusive)
     From int `json:"from"`
-    //The last time included in this interval (inclusive)
+    //The end of this interval (exclusive)
     Until int `json:"until"`
 }
 
@@ -37,6 +37,7 @@ type BoolInterval struct {
 
 var ErrBadTimeInterval = errors.New("negative or zero time interval")
 
+//Creates a new interval from "from" (inclusive) to "until" (exclusive).
 func NewInterval(from int, until int) Interval {
     return Interval{From: from, Until: until}
 }
@@ -46,18 +47,18 @@ func NewBoolInterval(from int, until int, value bool) BoolInterval {
 }
 
 func (iv Interval) Validate() error {
-    if iv.Until < iv.From {
+    if iv.Until <= iv.From {
         return ErrBadTimeInterval
     }
     return nil
 }
 
 func (iv Interval) Length() int {
-    return (iv.Until - iv.From) + 1
+    return iv.Until - iv.From
 }
 
 func (iv Interval) String() string {
-    return fmt.Sprintf("[%d,%d]", iv.From, iv.Until)
+    return fmt.Sprintf("[%d,%d)", iv.From, iv.Until)
 }
 
 func (bi BoolInterval) String() string {

@@ -90,14 +90,14 @@ func IntervalsToBytes(intervals []BoolInterval, padHead bool, padTail bool, ts T
 
     var bytesRequired int
     var intervalGaps = make([]int, len(intervals))
-    lastIntervalUntil := start - 1
+    lastIntervalUntil := start
 
     for i, interval := range intervals {
-        if interval.From <= lastIntervalUntil {
+        if interval.From < lastIntervalUntil {
             return nil, ErrDiscontinuity
         }
         if i > 0 {
-            gapLength := interval.From - (lastIntervalUntil + 1)
+            gapLength := interval.From - lastIntervalUntil
             intervalGaps[i-1] = gapLength
             bytesRequired += (gapLength + maxRunLength - 1) / maxRunLength
         }
@@ -119,7 +119,7 @@ func IntervalsToBytes(intervals []BoolInterval, padHead bool, padTail bool, ts T
 
     tailLength := 0
     if padTail {
-        tailLength = (ts.EpochLength() - 1) - end
+        tailLength = ts.EpochLength() - end
         if tailLength > 0 {
             bytesRequired += (tailLength + maxRunLength - 1) / maxRunLength
         }
@@ -269,7 +269,7 @@ func (slots Slots) ApplyPatches(patches []SlotsPatch) Slots {
 }
 
 func (slots Slots) IsAvailable(interval Interval) bool {
-    if interval.Until < interval.From {
+    if interval.Until <= interval.From {
         return false
     }
 
@@ -285,7 +285,7 @@ func (slots Slots) IsAvailable(interval Interval) bool {
         i++
     }
 
-    for i < len(slots.Bytes) && t <= interval.Until {
+    for i < len(slots.Bytes) && t < interval.Until {
         available := decodeAvailable(slots.Bytes[i])
         runLength := decodeRunLength(slots.Bytes[i])
         if !available {
@@ -295,7 +295,7 @@ func (slots Slots) IsAvailable(interval Interval) bool {
         i++
     }
 
-    return t > interval.Until
+    return t >= interval.Until
 }
 
 func (slots Slots) AvailableIntervals(length int, between Interval) []Interval {
@@ -320,7 +320,7 @@ func (slots Slots) AvailableIntervals(length int, between Interval) []Interval {
         chaining := false
         blockStart := between.From
 
-        for ; i < len(slots.Bytes) && t <= between.Until; i++ {
+        for ; i < len(slots.Bytes) && t < between.Until; i++ {
             available := decodeAvailable(slots.Bytes[i])
             runLength := decodeRunLength(slots.Bytes[i])
 
@@ -328,13 +328,13 @@ func (slots Slots) AvailableIntervals(length int, between Interval) []Interval {
                 blockStart = t
                 chaining = true
             } else if !available && chaining {
-                blockEnd := t - 1
+                blockEnd := t
                 if blockEnd > between.Until {
                     blockEnd = between.Until
                 }
 
-                for j := blockStart; j+length-1 <= blockEnd; j++ {
-                    interval := NewInterval(j, j+length-1)
+                for j := blockStart; j+length <= blockEnd; j++ {
+                    interval := NewInterval(j, j+length)
                     intervals = append(intervals, interval)
                 }
 
@@ -345,13 +345,13 @@ func (slots Slots) AvailableIntervals(length int, between Interval) []Interval {
         }
 
         if chaining {
-            blockEnd := t - 1
+            blockEnd := t
             if blockEnd > between.Until {
                 blockEnd = between.Until
             }
 
-            for j := blockStart; j+length-1 <= blockEnd; j++ {
-                interval := NewInterval(j, j+length-1)
+            for j := blockStart; j+length <= blockEnd; j++ {
+                interval := NewInterval(j, j+length)
                 intervals = append(intervals, interval)
             }
         }
