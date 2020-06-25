@@ -28,8 +28,13 @@ type Atom struct {
 }
 
 type TimeSystem interface {
+    //Returns the length of a single epoch in atoms.
     EpochLength() int
+    //Returns the number of epochs from y to x (epoch(x) - epoch(y)).
+    EpochDelta(x time.Time, y time.Time) int
+    //Returns the time x encoded as an atomic time and a number of atoms from the fixpoint.
     EncodeTime(fixpoint time.Time, x time.Time) Atom
+    //Returns the time decoded from an atomic time and a number of atoms from the fixpoint.
     DecodeTime(fixpoint time.Time, at Atom) time.Time
 }
 

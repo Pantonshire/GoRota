@@ -24,7 +24,7 @@ import (
 )
 
 const (
-    weekHours = 168
+    weekHours  = 168
     weekLength = time.Hour * weekHours
 )
 
@@ -36,25 +36,26 @@ func (ws WeekSystem) EpochLength() int {
     return int(weekLength.Nanoseconds() / ws.AtomDuration.Nanoseconds())
 }
 
+func (ws WeekSystem) EpochDelta(x time.Time, y time.Time) int {
+    return roundedWeeksBetween(startOfWeek(x), startOfWeek(y))
+}
+
 func (ws WeekSystem) EncodeTime(fixpoint time.Time, x time.Time) Atom {
-    fixpointWeekStart := startOfWeek(fixpoint)
-    weekStart := startOfWeek(x)
-    epoch := int(math.Round(weekStart.Sub(fixpointWeekStart).Hours() / weekHours))
-
-    delta := x.Sub(weekStart)
-    atomTime := uint(delta.Nanoseconds() / ws.AtomDuration.Nanoseconds())
-
-    return Atom{Epoch: epoch, Time: atomTime}.Clamp(ws)
+    xWeekStart := startOfWeek(x)
+    return Atom{
+        Epoch: roundedWeeksBetween(xWeekStart, startOfWeek(fixpoint)),
+        Time:  uint(x.Sub(xWeekStart).Nanoseconds() / ws.AtomDuration.Nanoseconds()),
+    }.Clamp(ws)
 }
 
 func (ws WeekSystem) DecodeTime(fixpoint time.Time, at Atom) time.Time {
     at = at.Mod(ws)
-    decodedTime := startOfWeek(fixpoint).AddDate(0, 0, at.Epoch * 7)
+    decodedTime := startOfWeek(fixpoint).AddDate(0, 0, at.Epoch*7)
     atomTimeDuration := ws.AtomDuration * time.Duration(at.Time)
     days := int(atomTimeDuration.Hours() / 24)
     if days > 0 {
         decodedTime = decodedTime.AddDate(0, 0, days)
-        atomTimeDuration -= time.Hour * time.Duration(days * 24)
+        atomTimeDuration -= time.Hour * time.Duration(days*24)
     }
     return decodedTime.Add(atomTimeDuration)
 }
@@ -66,4 +67,8 @@ func startOfWeek(t time.Time) time.Time {
 
 func mod(x int, base int) int {
     return (x%base + base) % base
+}
+
+func roundedWeeksBetween(x time.Time, y time.Time) int {
+    return int(math.Round(x.Sub(y).Hours() / weekHours))
 }
