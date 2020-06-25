@@ -61,26 +61,26 @@ func encodeRun(available bool, runLength int) byte {
     }
 }
 
-func IntervalsToSlots(intervals []BoolInterval, epochLength int) (Slots, error) {
-    bytes, err := IntervalsToBytes(intervals, true, epochLength)
+func IntervalsToSlots(intervals []BoolInterval, ts TimeSystem) (Slots, error) {
+    bytes, err := IntervalsToBytes(intervals, true, true, ts)
     if err != nil {
         return Slots{}, err
     }
     return NewSlots(bytes), nil
 }
 
-func IntervalsToSlotsPatch(intervals []BoolInterval) (SlotsPatch, error) {
+func IntervalsToSlotsPatch(intervals []BoolInterval, ts TimeSystem) (SlotsPatch, error) {
     if len(intervals) == 0 {
         return SlotsPatch{}, ErrNoTime
     }
-    bytes, err := IntervalsToBytes(intervals, false, 0)
+    bytes, err := IntervalsToBytes(intervals, false, false, ts)
     if err != nil {
         return SlotsPatch{}, err
     }
     return NewSlotsPatch(intervals[0].From, bytes), nil
 }
 
-func IntervalsToBytes(intervals []BoolInterval, padHead bool, epochLength int) ([]byte, error) {
+func IntervalsToBytes(intervals []BoolInterval, padHead bool, padTail bool, ts TimeSystem) ([]byte, error) {
     if len(intervals) == 0 {
         return nil, ErrNoTime
     }
@@ -118,8 +118,8 @@ func IntervalsToBytes(intervals []BoolInterval, padHead bool, epochLength int) (
     }
 
     tailLength := 0
-    if epochLength > 0 {
-        tailLength = (epochLength - 1) - end
+    if padTail {
+        tailLength = (ts.EpochLength() - 1) - end
         if tailLength > 0 {
             bytesRequired += (tailLength + maxRunLength - 1) / maxRunLength
         }
