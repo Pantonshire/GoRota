@@ -61,8 +61,8 @@ func encodeRun(available bool, runLength int) byte {
     }
 }
 
-func IntervalsToSlots(intervals []BoolInterval, periodLength int) (Slots, error) {
-    bytes, err := IntervalsToBytes(intervals, true, periodLength)
+func IntervalsToSlots(intervals []BoolInterval, epochLength int) (Slots, error) {
+    bytes, err := IntervalsToBytes(intervals, true, epochLength)
     if err != nil {
         return Slots{}, err
     }
