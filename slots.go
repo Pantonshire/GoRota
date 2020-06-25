@@ -184,14 +184,15 @@ func (slots Slots) ToIntervals(startTime int) []BoolInterval {
         runLength := decodeRunLength(b)
         if available != currentValue {
             if i > 0 {
-                intervals = append(intervals, NewBoolInterval(intervalStart, t-1, currentValue))
+                intervals = append(intervals, NewBoolInterval(intervalStart, t, currentValue))
+                intervalStart = t
             }
             currentValue = available
         }
         t += runLength
     }
 
-    intervals = append(intervals, NewBoolInterval(intervalStart, t-1, currentValue))
+    intervals = append(intervals, NewBoolInterval(intervalStart, t, currentValue))
 
     return intervals
 }
