@@ -41,23 +41,27 @@ func (ws WeekSystem) EpochDelta(x time.Time, y time.Time) int {
 }
 
 func (ws WeekSystem) EncodeTime(fixpoint time.Time, x time.Time) Atom {
-    xWeekStart := startOfWeek(x)
     return Atom{
-        Epoch: roundedWeeksBetween(xWeekStart, startOfWeek(fixpoint)),
-        Time:  uint(x.Sub(xWeekStart).Nanoseconds() / ws.AtomDuration.Nanoseconds()),
+        Epoch: ws.EpochDelta(x, fixpoint),
+        Time: uint((time.Hour*time.Duration(mod(int(x.Weekday())-1, 7))*24 +
+            time.Hour*time.Duration(x.Hour()) +
+            time.Minute*time.Duration(x.Minute()) +
+            time.Second*time.Duration(x.Second())).Nanoseconds() / ws.AtomDuration.Nanoseconds()),
     }.Clamp(ws)
 }
 
 func (ws WeekSystem) DecodeTime(fixpoint time.Time, at Atom) time.Time {
     at = at.Mod(ws)
-    decodedTime := startOfWeek(fixpoint).AddDate(0, 0, at.Epoch*7)
+    decodedDay := startOfWeek(fixpoint).AddDate(0, 0, at.Epoch*7)
     atomTimeDuration := ws.AtomDuration * time.Duration(at.Time)
     days := int(atomTimeDuration.Hours() / 24)
     if days > 0 {
-        decodedTime = decodedTime.AddDate(0, 0, days)
+        decodedDay = decodedDay.AddDate(0, 0, days)
         atomTimeDuration -= time.Hour * time.Duration(days*24)
     }
-    return decodedTime.Add(atomTimeDuration)
+    return time.Date(decodedDay.Year(), decodedDay.Month(), decodedDay.Day(),
+        int(atomTimeDuration.Hours()), int(atomTimeDuration.Minutes()), int(atomTimeDuration.Seconds()),
+        0, decodedDay.Location())
 }
 
 func startOfWeek(t time.Time) time.Time {
