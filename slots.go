@@ -305,8 +305,9 @@ func (slots Slots) Intersection(other Slots) Slots {
                 tj += lj
             }
 
+            var li int
             for ; i < len(slots.Bytes); i++ {
-                li := decodeRunLength(slots.Bytes[i])
+                li = decodeRunLength(slots.Bytes[i])
                 if ti + li > tj {
                     break
                 }
@@ -314,9 +315,10 @@ func (slots Slots) Intersection(other Slots) Slots {
             }
 
             if i < len(slots.Bytes) {
-                if tail := (ti + decodeRunLength(slots.Bytes[i])) - tj; tail > 0 {
+                if tail := (ti + li) - tj; tail > 0 {
                     intersection = append(intersection, encodeRun(decodeAvailable(slots.Bytes[i]), tail))
                 }
+                ti += li
                 i++
             }
         }
