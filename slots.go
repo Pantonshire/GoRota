@@ -228,7 +228,8 @@ func (slots Slots) ApplyPatch(patch SlotsPatch) Slots {
             t += decodeRunLength(patch.Patch.Bytes[j])
         }
 
-        for k := t; i < len(slots.Bytes); i++ {
+        k := 0
+        for i = 0; i < len(slots.Bytes); i++ {
             runLength := decodeRunLength(slots.Bytes[i])
             if k+runLength > t {
                 break
@@ -237,10 +238,10 @@ func (slots Slots) ApplyPatch(patch SlotsPatch) Slots {
         }
 
         if i < len(slots.Bytes) {
-            k := 0
-            for j := 0; j <= i; j++ {
-                k += decodeRunLength(slots.Bytes[j])
-            }
+            //k := 0
+            //for j := 0; j < i; j++ {
+            //    k += decodeRunLength(slots.Bytes[j])
+            //}
 
             if tail := decodeRunLength(slots.Bytes[i]) + k - t; tail > 0 {
                 patchedBytes = append(patchedBytes, encodeRun(decodeAvailable(slots.Bytes[i]), tail))
