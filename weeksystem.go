@@ -60,7 +60,7 @@ func (ws WeekSystem) DecodeTime(fixpoint time.Time, at Atom) time.Time {
         atomTimeDuration -= time.Hour * time.Duration(days*24)
     }
     return time.Date(decodedDay.Year(), decodedDay.Month(), decodedDay.Day(),
-        int(atomTimeDuration.Hours()), int(atomTimeDuration.Minutes()), int(atomTimeDuration.Seconds()),
+        int(atomTimeDuration.Hours()), int(atomTimeDuration.Minutes()) % 60, int(atomTimeDuration.Seconds()) % 60,
         0, decodedDay.Location())
 }
 
