@@ -55,3 +55,7 @@ func (t Atom) Clamp(ts TimeSystem) Atom {
     }
     return t
 }
+
+func (t Atom) Flatten(ts TimeSystem) int {
+    return int(t.Time) + (t.Epoch * ts.EpochLength())
+}
