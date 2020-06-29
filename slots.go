@@ -217,38 +217,33 @@ func (slots Slots) ApplyPatch(patch SlotsPatch) Slots {
     }
 
     if i < len(slots.Bytes) {
-        trimmedHeadAvailable := decodeAvailable(slots.Bytes[i])
-        trimmedHeadLength := patch.Start - t
-        if trimmedHeadLength > 0 {
-            patchedBytes = append(patchedBytes, encodeRun(trimmedHeadAvailable, trimmedHeadLength))
+        if head := patch.Start - t; head > 0 {
+            patchedBytes = append(patchedBytes, encodeRun(decodeAvailable(slots.Bytes[i]), head))
         }
 
         t = patch.Start
 
         for j := 0; j < len(patch.Patch.Bytes); j++ {
             patchedBytes = append(patchedBytes, patch.Patch.Bytes[j])
-            k := t
             t += decodeRunLength(patch.Patch.Bytes[j])
+        }
 
-            for ; i < len(slots.Bytes); i++ {
-                runLength := decodeRunLength(slots.Bytes[i])
-                if k+runLength >= t {
-                    break
-                }
-                k += runLength
+        for k := t; i < len(slots.Bytes); i++ {
+            runLength := decodeRunLength(slots.Bytes[i])
+            if k+runLength > t {
+                break
             }
+            k += runLength
         }
 
         if i < len(slots.Bytes) {
             k := 0
-            for j := 0; j < i; j++ {
+            for j := 0; j <= i; j++ {
                 k += decodeRunLength(slots.Bytes[j])
             }
 
-            trimmedTailAvailable := decodeAvailable(slots.Bytes[i])
-            trimmedTailLength := decodeRunLength(slots.Bytes[i]) + k - t
-            if trimmedTailLength > 0 {
-                patchedBytes = append(patchedBytes, encodeRun(trimmedTailAvailable, trimmedTailLength))
+            if tail := decodeRunLength(slots.Bytes[i]) + k - t; tail > 0 {
+                patchedBytes = append(patchedBytes, encodeRun(decodeAvailable(slots.Bytes[i]), tail))
             }
 
             i++
