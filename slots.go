@@ -263,25 +263,40 @@ func (slots Slots) ApplyPatches(patches []SlotsPatch) Slots {
 func (slots Slots) Intersection(other Slots) Slots {
     var intersection []byte
 
-    i, j := 0, 0
-    t := 0
-    si, sj := 0, 0
-    r := 0
-
     if len(slots.Bytes) > 0 && len(other.Bytes) > 0 {
+        i, j := 0, 0
+        t := 0
+        si, sj := 0, 0
+        r := 0
+
         li, lj := decodeRunLength(slots.Bytes[0]), decodeRunLength(other.Bytes[0])
         vi, vj := decodeAvailable(slots.Bytes[0]), decodeAvailable(other.Bytes[0])
         vr := vi && vj
 
         for i < len(slots.Bytes) && j < len(other.Bytes) {
-            if (vi && vj) != vr || r == maxRunLength {
-                intersection = append(intersection, encodeRun(vr, r))
+            if (vi && vj) != vr {
+                for ; r > 0; r -= maxRunLength {
+                    rLim := r
+                    if rLim > maxRunLength {
+                        rLim = maxRunLength
+                    }
+                    intersection = append(intersection, encodeRun(vr, rLim))
+                }
                 vr = vi && vj
                 r = 0
             }
 
-            t++
-            r++
+            ri, rj := si + li - t, sj + lj - t
+
+            var rMin int
+            if rj < ri {
+                rMin = rj
+            } else {
+                rMin = ri
+            }
+
+            t += rMin
+            r += rMin
 
             if t == si + li {
                 i++
@@ -302,7 +317,13 @@ func (slots Slots) Intersection(other Slots) Slots {
             }
         }
 
-        intersection = append(intersection, encodeRun(vr, r))
+        for ; r > 0; r -= maxRunLength {
+            rLim := r
+            if rLim > maxRunLength {
+                rLim = maxRunLength
+            }
+            intersection = append(intersection, encodeRun(vr, rLim))
+        }
     }
 
     return NewSlots(intersection)
