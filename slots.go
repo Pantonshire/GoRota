@@ -275,8 +275,8 @@ func (slots Slots) Intersection(other Slots) Slots {
 
         for i < len(slots.Bytes) && j < len(other.Bytes) {
             if vi && vj != vr || r == maxRunLength {
-                vr = vi && vj
                 intersection = append(intersection, encodeRun(vr, r))
+                vr = vi && vj
                 r = 0
             }
 
@@ -302,7 +302,7 @@ func (slots Slots) Intersection(other Slots) Slots {
             }
         }
 
-        intersection = append(intersection, encodeRun(vi && vj, r))
+        intersection = append(intersection, encodeRun(vr, r))
     }
 
     return NewSlots(intersection)
