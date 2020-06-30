@@ -238,11 +238,6 @@ func (slots Slots) ApplyPatch(patch SlotsPatch) Slots {
         }
 
         if i < len(slots.Bytes) {
-            //k := 0
-            //for j := 0; j < i; j++ {
-            //    k += decodeRunLength(slots.Bytes[j])
-            //}
-
             if tail := decodeRunLength(slots.Bytes[i]) + k - t; tail > 0 {
                 patchedBytes = append(patchedBytes, encodeRun(decodeAvailable(slots.Bytes[i]), tail))
             }
@@ -267,57 +262,47 @@ func (slots Slots) ApplyPatches(patches []SlotsPatch) Slots {
 
 func (slots Slots) Intersection(other Slots) Slots {
     var intersection []byte
-    i := 0
-    ti := 0
-    j := 0
-    tj := 0
 
-    for i < len(slots.Bytes) && j < len(other.Bytes) {
-        for ; j < len(other.Bytes); j++ {
-            lj := decodeRunLength(other.Bytes[j])
-            if tj + lj > ti && !decodeAvailable(other.Bytes[j]) {
-                break
-            }
-            tj += lj
-        }
+    i, j := 0, 0
+    t := 0
+    si, sj := 0, 0
+    r := 0
 
-        for ; i < len(slots.Bytes); i++ {
-            li := decodeRunLength(slots.Bytes[i])
-            if ti + li > tj {
-                break
-            }
-            intersection = append(intersection, slots.Bytes[i])
-            ti += li
-        }
+    if len(slots.Bytes) > 0 && len(other.Bytes) > 0 {
+        li, lj := decodeRunLength(slots.Bytes[0]), decodeRunLength(other.Bytes[0])
+        vi, vj := decodeAvailable(slots.Bytes[0]), decodeAvailable(other.Bytes[0])
+        vr := vi && vj
 
-        if i < len(slots.Bytes) {
-            if head := tj - ti; head > 0 {
-                intersection = append(intersection, encodeRun(decodeAvailable(slots.Bytes[i]), head))
+        for i < len(slots.Bytes) && j < len(other.Bytes) {
+            if vi && vj != vr || r == maxRunLength {
+                vr = vi && vj
+                intersection = append(intersection, encodeRun(vr, r))
+                r = 0
             }
 
-            for ; j < len(other.Bytes) && !decodeAvailable(other.Bytes[j]); j++ {
-                lj := decodeRunLength(other.Bytes[j])
-                intersection = append(intersection, encodeRun(false, lj))
-                tj += lj
-            }
+            t++
+            r++
 
-            var li int
-            for ; i < len(slots.Bytes); i++ {
-                li = decodeRunLength(slots.Bytes[i])
-                if ti + li > tj {
-                    break
-                }
-                ti += li
-            }
-
-            if i < len(slots.Bytes) {
-                if tail := (ti + li) - tj; tail > 0 {
-                    intersection = append(intersection, encodeRun(decodeAvailable(slots.Bytes[i]), tail))
-                }
-                ti += li
+            if t == si + li {
                 i++
+                si = t
+                if i < len(slots.Bytes) {
+                    li = decodeRunLength(slots.Bytes[i])
+                    vi = decodeAvailable(slots.Bytes[i])
+                }
+            }
+
+            if t == sj + lj {
+                j++
+                sj = t
+                if j < len(other.Bytes) {
+                    lj = decodeRunLength(other.Bytes[j])
+                    vj = decodeAvailable(other.Bytes[j])
+                }
             }
         }
+
+        intersection = append(intersection, encodeRun(vi && vj, r))
     }
 
     return NewSlots(intersection)
