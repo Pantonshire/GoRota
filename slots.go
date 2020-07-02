@@ -27,7 +27,7 @@ type Slots struct {
 }
 
 type SlotsPatch struct {
-    Start int
+    Start uint
     Patch Slots
 }
 
@@ -40,7 +40,7 @@ func NewSlots(bytes []byte) Slots {
     return Slots{Bytes: bytes}
 }
 
-func NewSlotsPatch(start int, bytes []byte) SlotsPatch {
+func NewSlotsPatch(start uint, bytes []byte) SlotsPatch {
     return SlotsPatch{Start: start, Patch: NewSlots(bytes)}
 }
 
@@ -48,8 +48,8 @@ func decodeAvailable(b byte) bool {
     return b & 0b10000000 != 0
 }
 
-func decodeRunLength(b byte) int {
-    return int((b & 0b01111111) + 1)
+func decodeRunLength(b byte) uint {
+    return uint((b & 0b01111111) + 1)
 }
 
 func encodeRun(available bool, runLength int) byte {
@@ -97,7 +97,7 @@ func IntervalsToBytes(intervals []BoolInterval, padHead bool, padTail bool, ts T
             return nil, ErrDiscontinuity
         }
         if i > 0 {
-            gapLength := interval.From - lastIntervalUntil
+            gapLength := int(interval.From) - int(lastIntervalUntil)
             intervalGaps[i-1] = gapLength
             bytesRequired += (gapLength + maxRunLength - 1) / maxRunLength
         }
@@ -111,7 +111,7 @@ func IntervalsToBytes(intervals []BoolInterval, padHead bool, padTail bool, ts T
 
     headLength := 0
     if padHead {
-        headLength = start
+        headLength = int(start)
         if headLength > 0 {
             bytesRequired += (headLength + maxRunLength - 1) / maxRunLength
         }
@@ -119,7 +119,7 @@ func IntervalsToBytes(intervals []BoolInterval, padHead bool, padTail bool, ts T
 
     tailLength := 0
     if padTail {
-        tailLength = ts.EpochLength() - end
+        tailLength = ts.EpochLength() - int(end)
         if tailLength > 0 {
             bytesRequired += (tailLength + maxRunLength - 1) / maxRunLength
         }
@@ -169,13 +169,13 @@ func IntervalsToBytes(intervals []BoolInterval, padHead bool, padTail bool, ts T
     return bytes, nil
 }
 
-func (slots Slots) ToIntervals(startTime int) []BoolInterval {
+func (slots Slots) ToIntervals(startTime uint) []BoolInterval {
     if len(slots.Bytes) == 0 {
         return []BoolInterval{}
     }
 
     var intervals []BoolInterval
-    intervalStart := 0
+    var intervalStart uint = 0
     currentValue := false
     t := startTime
 
@@ -205,7 +205,7 @@ func (slots Slots) ApplyPatch(patch SlotsPatch) Slots {
     var patchedBytes []byte
 
     i := 0
-    t := 0
+    var t uint = 0
 
     for ; i < len(slots.Bytes); i++ {
         runLength := decodeRunLength(slots.Bytes[i])
@@ -218,7 +218,7 @@ func (slots Slots) ApplyPatch(patch SlotsPatch) Slots {
 
     if i < len(slots.Bytes) {
         if head := patch.Start - t; head > 0 {
-            patchedBytes = append(patchedBytes, encodeRun(decodeAvailable(slots.Bytes[i]), head))
+            patchedBytes = append(patchedBytes, encodeRun(decodeAvailable(slots.Bytes[i]), int(head)))
         }
 
         t = patch.Start
@@ -228,7 +228,7 @@ func (slots Slots) ApplyPatch(patch SlotsPatch) Slots {
             t += decodeRunLength(patch.Patch.Bytes[j])
         }
 
-        k := 0
+        var k uint = 0
         for i = 0; i < len(slots.Bytes); i++ {
             runLength := decodeRunLength(slots.Bytes[i])
             if k+runLength > t {
@@ -239,7 +239,7 @@ func (slots Slots) ApplyPatch(patch SlotsPatch) Slots {
 
         if i < len(slots.Bytes) {
             if tail := decodeRunLength(slots.Bytes[i]) + k - t; tail > 0 {
-                patchedBytes = append(patchedBytes, encodeRun(decodeAvailable(slots.Bytes[i]), tail))
+                patchedBytes = append(patchedBytes, encodeRun(decodeAvailable(slots.Bytes[i]), int(tail)))
             }
 
             i++
@@ -269,7 +269,7 @@ func (slots Slots) Intersection(other Slots) Slots {
         si, sj := 0, 0
         r := 0
 
-        li, lj := decodeRunLength(slots.Bytes[0]), decodeRunLength(other.Bytes[0])
+        li, lj := int(decodeRunLength(slots.Bytes[0])), int(decodeRunLength(other.Bytes[0]))
         vi, vj := decodeAvailable(slots.Bytes[0]), decodeAvailable(other.Bytes[0])
         vr := vi && vj
 
@@ -302,7 +302,7 @@ func (slots Slots) Intersection(other Slots) Slots {
                 i++
                 si = t
                 if i < len(slots.Bytes) {
-                    li = decodeRunLength(slots.Bytes[i])
+                    li = int(decodeRunLength(slots.Bytes[i]))
                     vi = decodeAvailable(slots.Bytes[i])
                 }
             }
@@ -311,7 +311,7 @@ func (slots Slots) Intersection(other Slots) Slots {
                 j++
                 sj = t
                 if j < len(other.Bytes) {
-                    lj = decodeRunLength(other.Bytes[j])
+                    lj = int(decodeRunLength(other.Bytes[j]))
                     vj = decodeAvailable(other.Bytes[j])
                 }
             }
@@ -335,7 +335,7 @@ func (slots Slots) IsAvailable(interval Interval) bool {
     }
 
     i := 0
-    t := 0
+    var t uint = 0
 
     for i < len(slots.Bytes) {
         runLength := decodeRunLength(slots.Bytes[i])
@@ -359,13 +359,13 @@ func (slots Slots) IsAvailable(interval Interval) bool {
     return t >= interval.Until
 }
 
-func (slots Slots) AvailableIntervals(length int, between Interval) []Interval {
+func (slots Slots) AvailableIntervals(length uint, between Interval) []Interval {
     if len(slots.Bytes) == 0 {
         return []Interval{}
     }
 
     i := 0
-    t := 0
+    var t uint = 0
 
     for ; i < len(slots.Bytes); i++ {
         runLength := decodeRunLength(slots.Bytes[i])
