@@ -386,7 +386,9 @@ func (slots Slots) AvailableIntervals(length uint, between Interval) []Interval 
             runLength := decodeRunLength(slots.Bytes[i])
 
             if available && !chaining {
-                blockStart = t
+                if t > between.From {
+                    blockStart = t
+                }
                 chaining = true
             } else if !available && chaining {
                 blockEnd := t
